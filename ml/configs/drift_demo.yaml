@@ -1,0 +1,70 @@
+# PulseGuard Phase 4 drift-and-recovery demo config.
+# Same dataset/splits/features as train_synthetic.yaml (so the level shifts inside the
+# evaluation region drive the drift story), plus gate/drift/retrain sections.
+
+seed: 42
+
+dataset:
+  source: simulator
+  simulator_config: ml/configs/simulator_default.yaml
+  points_per_day: 1440
+
+splits:
+  mode: days
+  train_days: 14
+  eval_days: 9
+  golden_days: 5
+  refit_every_days: 1
+
+features:
+  lags: [1, 2, 3, 5, 15, 30, 60]
+  rolling_windows: [5, 15, 60]
+  rolling_stats: [mean, std, min, max]
+  roc_offsets: [1, 60]
+  calendar: true
+
+anomaly:
+  n_estimators: 300
+  contamination: 0.01
+  n_jobs: 2  # caps peak memory inside the demo container
+  calibration: best_f1
+  percentile_fallback: 0.99
+  zscore_window: 60
+
+forecast:
+  horizons: [1, 5, 15]
+  quantiles: [0.05, 0.5, 0.95]
+  val_fraction: 0.2
+  params:
+    learning_rate: 0.05
+    num_leaves: 31
+    n_estimators: 600
+    min_data_in_leaf: 20
+    early_stopping_rounds: 50
+    n_jobs: 2  # caps peak memory inside the demo container (LightGBM threads)
+
+gate:
+  min_relative_improvement: 0.02
+  max_regression: 0.01
+  band_nominal_coverage: 0.90
+  coverage_tolerance: 0.05
+  auc_tolerance: 0.005
+  f1_tolerance: 0.02
+  min_train_rows: 5000
+
+drift:
+  psi_bins: 10
+  # recent PSI window matches the reference span (7 days) so day-of-week composition
+  # is comparable between the two windows
+  window_points: 10080
+  reference_window_days: 7   # references capture the champion's recent training regime
+  residual:
+    window: 12               # forecasts per monitoring window
+    multiplier: 1.5          # drift when window MAE > 1.5x baseline
+    sustained: 3             # ...for 3 consecutive windows
+    baseline_days: 2         # healthy training-tail used for the baseline
+    serving_step_minutes: 360  # simulate historical serving every 6 hours
+
+mape_epsilon: 1.0
+
+report_dir: ml/reports

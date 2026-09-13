@@ -1,0 +1,49 @@
+# PulseGuard Phase 2 public-benchmark sanity config (NAB, secondary check only).
+#
+# One labeled NAB series, standardized with:
+#   python -m ml.loaders --csv data/raw/nab/ec2_cpu_utilization_53ea38.csv \
+#       --labels data/raw/nab/labels/combined_windows.json \
+#       --out data/generated/nab_ec2_cpu_utilization_53ea38.csv
+# Feature windows are in ROWS: NAB realAWSCloudwatch series are 5-minute data
+# (points_per_day 288), so lag_60 spans 5 hours, etc.
+
+seed: 42
+
+dataset:
+  source: csv
+  csv: data/generated/nab_ec2_cpu_utilization_53ea38.csv
+  points_per_day: 288
+
+splits:
+  mode: fractions
+  fractions: [0.6, 0.3, 0.1]
+  n_folds: 10
+
+features:
+  lags: [1, 2, 3, 6, 12, 36, 72]
+  rolling_windows: [6, 18, 72]
+  rolling_stats: [mean, std, min, max]
+  roc_offsets: [1, 36]
+  calendar: true
+
+anomaly:
+  n_estimators: 300
+  contamination: 0.01
+  calibration: best_f1      # per fold, on the fold's training-window labels
+  percentile_fallback: 0.99
+  zscore_window: 72
+
+forecast:
+  horizons: [1, 6, 12]
+  quantiles: [0.05, 0.5, 0.95]
+  val_fraction: 0.2
+  params:
+    learning_rate: 0.05
+    num_leaves: 31
+    n_estimators: 600
+    min_data_in_leaf: 20
+    early_stopping_rounds: 50
+
+mape_epsilon: 1.0
+
+report_dir: ml/reports

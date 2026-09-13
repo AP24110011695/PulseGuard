@@ -1,0 +1,34 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- Environment / secrets (only .env.example is committed) ---
+.env
+.env.local
+
+# --- Data: regenerable or downloaded, never committed ---
+data/raw/
+data/generated/
+ml/reports/
+
+# --- MLflow local stores ---
+mlruns/
+mlartifacts/
+
+# --- Node / frontend ---
+node_modules/
+dist/
+
+# --- OS / editor noise ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

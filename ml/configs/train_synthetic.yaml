@@ -1,0 +1,46 @@
+# PulseGuard Phase 2 training/evaluation config — synthetic data.
+# Deterministic end to end: the dataset is regenerated from the seeded simulator config
+# and the whole normalized config contributes the report's config SHA-256.
+
+seed: 42
+
+dataset:
+  source: simulator
+  simulator_config: ml/configs/simulator_default.yaml
+  points_per_day: 1440
+
+splits:
+  mode: days
+  train_days: 14
+  eval_days: 9
+  golden_days: 5
+  refit_every_days: 1
+
+features:
+  lags: [1, 2, 3, 5, 15, 30, 60]
+  rolling_windows: [5, 15, 60]
+  rolling_stats: [mean, std, min, max]
+  roc_offsets: [1, 60]
+  calendar: true
+
+anomaly:
+  n_estimators: 300
+  contamination: 0.01
+  calibration: best_f1      # per fold, on the fold's training-window labels
+  percentile_fallback: 0.99
+  zscore_window: 60
+
+forecast:
+  horizons: [1, 5, 15]
+  quantiles: [0.05, 0.5, 0.95]
+  val_fraction: 0.2
+  params:
+    learning_rate: 0.05
+    num_leaves: 31
+    n_estimators: 600
+    min_data_in_leaf: 20
+    early_stopping_rounds: 50
+
+mape_epsilon: 1.0
+
+report_dir: ml/reports

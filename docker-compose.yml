@@ -1,0 +1,82 @@
+# PulseGuard — Phase 1: db + api + frontend. The mlflow service arrives in Phase 3.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pulseguard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pulseguard_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-pulseguard}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pulseguard} -d ${POSTGRES_DB:-pulseguard}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pulseguard}:${POSTGRES_PASSWORD:-pulseguard_dev}@db:5432/${POSTGRES_DB:-pulseguard}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    ports:
+      - "8000:8000"
+    volumes:
+      # shared artifact store: the api loads champion artifacts by path
+      - mlartifacts:/mlartifacts
+    depends_on:
+      db:
+        condition: service_healthy
+      mlflow:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: >
+      sh -c "mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri postgresql+psycopg://${POSTGRES_USER:-pulseguard}:${POSTGRES_PASSWORD:-pulseguard_dev}@db:5432/mlflow
+      --default-artifact-root file:///mlartifacts
+      --allowed-hosts '*'
+      --cors-allowed-origins '*'"
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlartifacts:/mlartifacts
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      VITE_API_BASE_URL: http://127.0.0.1:8000
+    ports:
+      # Host 5174: 5173 can collide with other Vite/Docker stacks already bound on
+      # this machine (e.g. a concurrently running CodeGraphV2 dev environment).
+      - "5174:5173"
+    volumes:
+      # dev-mode hot reload: serve host source, keep the image's node_modules
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.ts:/app/vite.config.ts
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  mlartifacts:

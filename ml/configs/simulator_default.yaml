@@ -1,0 +1,50 @@
+# PulseGuard default synthetic metric profile (Phase 1).
+# Deterministic: fixed start + seed produce byte-identical output across runs.
+
+seed: 42
+start: "2026-08-16T00:00:00Z"
+days: 28
+freq: "1min"  # informational; the generator is fixed at 1-minute resolution
+
+series:
+  - name: api_latency_p95_ms
+    unit: ms
+    description: "Synthetic p95 API latency with a daily traffic cycle, spikes and one permanent level shift."
+    base: 120.0
+    trend_per_day: 0.8
+    daily_amplitude: 25.0
+    daily_phase_hours: 10.0
+    weekend_factor: 0.9
+    noise_sigma: 4.0
+    spikes: { count: 14, magnitude: [60.0, 140.0], width_minutes: [1, 6] }
+    level_shifts: { count: 1, magnitude: 25.0, transition_minutes: 20 }
+    variance_changes: { count: 1, sigma_multiplier: 3.0, duration_minutes: 180 }
+    contextual: { count: 10, magnitude_fraction: [0.6, 0.95] }
+
+  - name: cpu_usage_pct
+    unit: percent
+    description: "Synthetic CPU utilization with a weekly pattern, a variance burst and a negative level shift."
+    base: 45.0
+    trend_per_day: 0.3
+    daily_amplitude: 12.0
+    daily_phase_hours: 14.0
+    weekend_factor: 0.7
+    noise_sigma: 2.0
+    spikes: { count: 10, magnitude: [18.0, 35.0], width_minutes: [1, 4] }
+    level_shifts: { count: 1, magnitude: -12.0, transition_minutes: 15 }
+    variance_changes: { count: 1, sigma_multiplier: 3.5, duration_minutes: 240 }
+    contextual: { count: 8, magnitude_fraction: [0.7, 1.0] }
+
+  - name: request_rate_rps
+    unit: rps
+    description: "Synthetic request rate with strong daily/weekly seasonality and a variance burst."
+    base: 800.0
+    trend_per_day: 2.0
+    daily_amplitude: 220.0
+    daily_phase_hours: 12.0
+    weekend_factor: 0.55
+    noise_sigma: 18.0
+    spikes: { count: 12, magnitude: [250.0, 500.0], width_minutes: [1, 5] }
+    level_shifts: { count: 1, magnitude: 90.0, transition_minutes: 30 }
+    variance_changes: { count: 1, sigma_multiplier: 2.5, duration_minutes: 300 }
+    contextual: { count: 12, magnitude_fraction: [0.5, 0.9] }
