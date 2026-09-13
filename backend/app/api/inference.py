@@ -64,7 +64,8 @@ def list_forecasts(
         stmt = stmt.where(StoredForecast.target_ts < end)
     if model_version is not None:
         stmt = stmt.where(StoredForecast.model_version == model_version)
-    rows = db.execute(stmt.order_by(StoredForecast.target_ts.asc()).limit(limit)).scalars().all()
+    # newest first: charts and feeds surface the most recent predictions
+    rows = db.execute(stmt.order_by(StoredForecast.target_ts.desc()).limit(limit)).scalars().all()
     return StoredForecastsPage(series_id=series.id, count=len(rows), forecasts=list(rows))
 
 

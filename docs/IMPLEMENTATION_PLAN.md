@@ -3,7 +3,7 @@
 > **Companion to [`PULSEGUARD.md`](../PULSEGUARD.md).** That file defines what PulseGuard
 > is and the rules; this file defines exactly how it gets built, phase by phase.
 >
-> - **Status:** Phase 4 complete (2026-09-13). Phase 5 — Dashboard, Evaluation & Hardening — is next.
+> - **Status:** Phase 5 complete (2026-09-13). Phase 6 — Final Demo, Docker & Documentation — is next.
 > - **Last updated:** 2026-09-13
 
 ---
@@ -713,11 +713,11 @@ python scripts/bench_inference.py
 ```
 
 **Completion criteria.**
-- [ ] All dashboard views render real backend data (zero mock data in the frontend)
-- [ ] Loading/empty/error states on every view; responsive at 1280px and 768px widths
-- [ ] Alerts feed wired to real events; acknowledge works
-- [ ] Benchmarks run; measured results recorded in `docs/BENCHMARKS.md` with methodology
-- [ ] Test suites green; frontend build clean
+- [x] All dashboard views render real backend data (zero mock data in the frontend)
+- [x] Loading/empty/error states on every view; responsive at 1280px and 768px widths
+- [x] Alerts feed wired to real events; acknowledge works
+- [x] Benchmarks run; measured results recorded in `docs/BENCHMARKS.md` with methodology
+- [x] Test suites green; frontend build clean
 
 **Expected working result.** A polished, interview-ready product.
 
@@ -1028,3 +1028,54 @@ detection, clipping, residual monitor branches, gate promote/reject/boundary/
 insufficient-data, golden-set identity, retraining promote/reject smoke on a tiny
 seeded config, and the drift API endpoints incl. the retraining trigger recording a
 decision). `ruff check .` clean.
+
+### Phase 5 — Dashboard, Evaluation & Hardening (completed 2026-09-13)
+
+**What was delivered.**
+- **Alerts (backend):** migration 004 (`alerts` table with `(series_id, kind,
+  dedupe_key)` dedupe identity); alerts raised on anomaly hits (per flagged point),
+  forecast band breaches (actuals outside the stored p05–p95 band, checked during
+  drift checks), and PSI/residual drift events; `GET /api/v1/alerts` (+ series and
+  acknowledged filters) and `POST /api/v1/alerts/{id}/ack`.
+- **Dashboard (frontend):** navigation across five pages — Overview (system summary
+  cards: champions + loaded state, drift status, open alerts), SeriesDetail (value
+  line + shaded p05–p95 forecast band + dashed median + anomaly markers + Recharts
+  Brush zoom + model-provenance lines), Models (champion cards with horizons/
+  quantiles/threshold, registered versions with aliases, promotion-decision table),
+  Drift (per-series status cards, per-feature PSI bar chart for the selected series,
+  recent events table), Alerts (feed with severity/kind badges, acknowledge action,
+  unacknowledged/all filter). Every view renders live API data — zero mock data —
+  with loading/empty/error states; responsive grids verified at 1280px and 768px in
+  a browser.
+- **ESLint** (flat config, react-hooks + typescript-eslint) added; `npm run lint`
+  clean; `npm run build` (tsc + vite) clean.
+- **Benchmarks:** `scripts/bench_ingest.py`, `bench_query.py`, `bench_inference.py`;
+  measured results in `docs/BENCHMARKS.md` (methodology + hardware context).
+
+**Measured benchmark results** (local Docker Desktop, WSL2; details and caveats in
+`docs/BENCHMARKS.md`): bulk ingest 20,000 pts in 5k chunks → **2,854 pts/s** (5k-batch
+p50 1.76 s); downsampled 2,000-row points query over 40,320 pts → **p50 44 ms**
+(p95 1.95 s — one cold outlier after restart); warm forecast serving → **p50 54 ms**
+(h=1) / 55 ms (h=15), anomaly scoring of 400 rows → p50 199 ms.
+
+**Live verification:** a drift check on cpu_usage created 6 forecast-breach alerts +
+a drift alert; the feed lists them with payloads; acknowledge persists (1 acked).
+SeriesDetail shows the p05–p95 band overlay from 287 stored forecasts with the
+champion provenance badge (pulseguard-forecaster v24).
+
+**Deviations and decisions made during the phase:**
+1. Stored-forecast reads are newest-first (charts surface recent predictions; the
+   Phase 3 assertion was updated accordingly).
+2. The champion endpoint now resolves the alias live on every read (stale-mirror
+   fix carried over from the Phase 4 demo).
+3. Optional items (Prometheus, Pandera, vitest component tests) were **not** added —
+   no concrete need demonstrated yet; they remain in the optional list.
+4. ESLint was not present after Phase 1 (build-only setup); Phase 5 adds the
+   standard flat-config toolchain the completion criteria require.
+5. Benchmark scripts run on the host against the live compose stack and write
+   nothing automatically — numbers are transcribed into `docs/BENCHMARKS.md` with
+   methodology and explicit non-claims (no scalability/concurrency measurement).
+
+**Tests:** 103 passed — 4 new (anomaly alerts + dedupe + ack flow, drift alerts on
+PSI drift with a shifted window, forecast-breach alerts from a seeded out-of-band
+forecast, ack of an unknown alert → 404).

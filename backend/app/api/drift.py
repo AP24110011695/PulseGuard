@@ -17,6 +17,7 @@ from backend.app.schemas.drift import (
     RetrainingTriggerRequest,
     RetrainingTriggerResponse,
 )
+from backend.app.services.alerts import check_forecast_breaches
 from backend.app.services.drift import (
     drift_status,
     record_promotion_decision,
@@ -94,6 +95,26 @@ def run_drift_check_endpoint(
             checks.append(
                 {"series_id": series_id, "kind": "residual", "status": "skipped", "error": str(exc)}
             )
+        if payload.task == "forecast":
+            try:
+                breaches = check_forecast_breaches(db, series_id)
+                checks.append(
+                    {
+                        "series_id": series_id,
+                        "kind": "forecast_breach",
+                        "status": "ok",
+                        "breaches": breaches,
+                    }
+                )
+            except ModelUnavailable as exc:
+                checks.append(
+                    {
+                        "series_id": series_id,
+                        "kind": "forecast_breach",
+                        "status": "skipped",
+                        "error": str(exc),
+                    }
+                )
     return DriftCheckResponse(checks=checks, events_recorded=events_recorded)
 
 

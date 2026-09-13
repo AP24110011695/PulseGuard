@@ -3,6 +3,7 @@ import { EmptyState } from '../components/EmptyState'
 import { ErrorState } from '../components/ErrorState'
 import { LoadingSkeleton } from '../components/LoadingSkeleton'
 import { MetricChart } from '../components/MetricChart'
+import { StatusBadge } from '../components/StatusBadge'
 import { useFetch } from '../hooks/useFetch'
 
 function fmtRange(first: string | null, last: string | null): string {
@@ -13,6 +14,8 @@ function fmtRange(first: string | null, last: string | null): string {
 export function SeriesDetail({ id, onBack }: { id: number; onBack: () => void }) {
   const detail = useFetch(() => api.getSeries(id), [id])
   const points = useFetch(() => api.getPoints(id), [id])
+  const forecasts = useFetch(() => api.getStoredForecasts(id), [id])
+  const anomalies = useFetch(() => api.getStoredAnomalies(id), [id])
 
   return (
     <section>
@@ -36,20 +39,37 @@ export function SeriesDetail({ id, onBack }: { id: number; onBack: () => void })
         </div>
       )}
 
-      {points.loading && <LoadingSkeleton height={360} />}
+      {points.loading && <LoadingSkeleton height={400} />}
       {points.error && <ErrorState message={points.error.message} onRetry={points.retry} />}
       {points.data && points.data.count === 0 && (
         <EmptyState title="No data points" hint="This series exists but has no points stored yet." />
       )}
       {points.data && points.data.count > 0 && (
         <>
-          {points.data.downsampled && (
+          {forecasts.data && forecasts.data.count > 0 && (
             <p className="muted small">
-              Showing {points.data.count} bucket-averaged points (bucket = {points.data.bucket_seconds}s) of{' '}
-              {detail.data?.point_count.toLocaleString()} stored points.
+              Forecast provenance: {forecasts.data.forecasts[forecasts.data.count - 1].model_name} v
+              {forecasts.data.forecasts[forecasts.data.count - 1].model_version} ·{' '}
+              <StatusBadge
+                label={`${forecasts.data.count} stored forecasts`}
+                tone="info"
+              />
             </p>
           )}
-          <MetricChart points={points.data.points} unit={detail.data?.unit} />
+          {anomalies.data && anomalies.data.count > 0 && (
+            <p className="muted small">
+              Anomaly provenance: {anomalies.data.results[anomalies.data.count - 1].model_name} v
+              {anomalies.data.results[anomalies.data.count - 1].model_version} ·{' '}
+              {anomalies.data.results.filter((r) => r.is_anomaly).length} flagged of{' '}
+              {anomalies.data.count} scored
+            </p>
+          )}
+          <MetricChart
+            points={points.data.points}
+            forecasts={forecasts.data?.forecasts ?? []}
+            anomalies={anomalies.data?.results ?? []}
+            unit={detail.data?.unit}
+          />
         </>
       )}
     </section>

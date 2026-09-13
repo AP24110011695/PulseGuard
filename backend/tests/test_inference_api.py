@@ -63,6 +63,7 @@ def test_forecast_roundtrip_persists_with_model_version(client, unique_name):
     stored = client.get(f"/api/v1/series/{series_id}/forecasts").json()
     assert stored["count"] == 1
     assert stored["forecasts"][0]["id"] == body["id"]
+    assert stored["forecasts"][0]["model_version"] >= 1
 
     # model_version filter: a version that produced nothing returns an empty page
     empty = client.get(

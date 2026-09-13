@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 from backend.app.core.config import settings
 from backend.app.models.metric import MetricPoint
 from backend.app.models.prediction import ActiveModel, AnomalyResult, StoredForecast
+from backend.app.services.alerts import raise_anomaly_alerts
 from ml.features import FeatureConfig, build_features
 
 CHAMPION_ALIAS = "champion"
@@ -300,6 +301,7 @@ def score_series_anomalies(
         )
     ]
     _upsert_anomaly_results(db, results)
+    raise_anomaly_alerts(db, series_id, results)
     # return the persisted rows so ids/timestamps reflect the database state
     saved = db.execute(
         select(AnomalyResult)

@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.app.api import drift, health, inference, models, points, series
+from backend.app.api import alerts, drift, health, inference, models, points, series
 from backend.app.core.config import settings
 from backend.app.core.errors import ApiError
 
@@ -79,4 +79,5 @@ api_v1.include_router(points.router)
 api_v1.include_router(models.router)
 api_v1.include_router(inference.router)
 api_v1.include_router(drift.router)
+api_v1.include_router(alerts.router)
 app.include_router(api_v1)

@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from backend.app.models.drift import DriftEvent, DriftReference
 from backend.app.models.metric import MetricPoint
 from backend.app.models.prediction import StoredForecast
+from backend.app.services.alerts import raise_alert
 from backend.app.services.inference import (
     LOOKBACK_BUFFER,
     model_manager,
@@ -155,6 +156,20 @@ def run_psi_check(
     )
     db.add(event)
     db.commit()
+    if status == "drift":
+        raise_alert(
+            db,
+            series_id,
+            "drift",
+            f"PSI drift on {worst_feature} ({worst_value:.2f}) for {series_name}",
+            {
+                "task": task,
+                "feature": worst_feature,
+                "psi": worst_value,
+                "model_version": champion.version,
+            },
+            dedupe_key=f"{task}-{worst_feature}-{event.detected_at.date()}",
+        )
     return {
         "series_id": series_id,
         "series_name": series_name,
@@ -241,6 +256,20 @@ def run_residual_check(
     )
     db.add(event)
     db.commit()
+    if result["status"] == "drift":
+        raise_alert(
+            db,
+            series_id,
+            "drift",
+            f"residual drift: {len(result['window_maes'])} windows above "
+            f"{result['multiplier']}x baseline",
+            {
+                "task": task,
+                "window_maes": result["window_maes"],
+                "baseline_mae": result["baseline_mae"],
+            },
+            dedupe_key=f"{task}-residual-{event.detected_at.date()}",
+        )
     return {"series_id": series_id, "kind": "residual", **result, "event_id": event.id}
 
 
