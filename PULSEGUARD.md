@@ -5,7 +5,7 @@
 > lives in [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md). If code and this
 > file disagree, fix the code — or update this file deliberately, never silently.
 >
-> - **Status:** Phase 5 complete (2026-09-13). Phase 6 — Final Demo, Docker & Documentation — is next.
+> - **Status:** **PROJECT COMPLETE** — all six phases done (2026-09-13).
 > - **Last updated:** 2026-09-13
 
 ---

@@ -3,7 +3,7 @@
 > **Companion to [`PULSEGUARD.md`](../PULSEGUARD.md).** That file defines what PulseGuard
 > is and the rules; this file defines exactly how it gets built, phase by phase.
 >
-> - **Status:** Phase 5 complete (2026-09-13). Phase 6 — Final Demo, Docker & Documentation — is next.
+> - **Status:** **PROJECT COMPLETE** — all six phases done (2026-09-13).
 > - **Last updated:** 2026-09-13
 
 ---
@@ -771,11 +771,11 @@ cd frontend && npm run build
 ```
 
 **Completion criteria.**
-- [ ] Fresh-machine runbook works: clone → compose up → seed → demo
-- [ ] README quickstart accurate when executed verbatim
-- [ ] Evaluation report contains only measured numbers with repro commands
-- [ ] All six phases' completion criteria checked
-- [ ] Repo clean: no generated artifacts, no secrets, docs truthful
+- [x] Fresh-machine runbook works: clone → compose up → seed → demo
+- [x] README quickstart accurate when executed verbatim
+- [x] Evaluation report contains only measured numbers with repro commands
+- [x] All six phases' completion criteria checked
+- [x] Repo clean: no generated artifacts, no secrets, docs truthful
 
 **Expected working result.** A reproducible, recruiter-ready project.
 
@@ -1079,3 +1079,40 @@ champion provenance badge (pulseguard-forecaster v24).
 **Tests:** 103 passed — 4 new (anomaly alerts + dedupe + ack flow, drift alerts on
 PSI drift with a shifted window, forecast-breach alerts from a seeded out-of-band
 forecast, ack of an unknown alert → 404).
+
+### Phase 6 — Final Demo, Docker & Documentation (completed 2026-09-13)
+
+**What was delivered.**
+- **Static frontend serving:** the frontend image is now a multi-stage build
+  (node build → nginx:1.27-alpine with SPA fallback, `VITE_API_BASE_URL` baked at
+  build time via a Compose build arg); host port 5174 → container 80. The dev-only
+  bind mounts were removed (host `npm run dev` remains the development workflow).
+- **`scripts/seed_demo.py`** — the idempotent fresh-clone seed: ingests the seeded
+  dataset through the API (120,960 points; duplicates no-op), registers pooled
+  champions **only if the registry has no champion alias** (registry-first check),
+  runs a live forecast + anomaly-scoring pass, persists a 287-row forecast strip per
+  series so the chart shows the prediction band, and runs one drift check (events +
+  alerts). Runtime on the fresh stack: 62.5 s first run, 33.7 s idempotent re-run.
+- **README.md** rewritten: architecture (mermaid), verbatim quickstart, demo
+  workflow, repo map, measured highlights, limitations.
+- **docs/EVALUATION_REPORT.md**: methodology, measured forecast/anomaly tables (with
+  the warmup-alignment correction note), NAB sanity results, the drift-demo outcome,
+  threats to validity, and a reproduction index.
+
+**Fresh-state verification (executed):** `docker compose down -v` →
+`docker compose up -d --build` → all four services healthy on empty volumes →
+`docker compose run --rm api python scripts/seed_demo.py` (62.5 s) → dashboard alive
+against the fresh DB (champions v4 loaded, drift checks recorded, alerts present) →
+`pytest ml/tests backend/tests` 103 passed → `npm run build` + `npm run lint` clean.
+
+**Deviations and fixes made during the phase:**
+1. `scripts/` was excluded by `.dockerignore` AND never COPY-ed into the image — the
+   one-command seed failed until the Dockerfile gained `COPY scripts ./scripts` (and
+   the ignore entry was dropped). A cached COPY layer hid the first fix.
+2. `seed_demo._persist_forecast_strip` used positional indexing on feature frames
+   whose labels are original positions — the same alignment class of bug fixed in
+   Phase 3; corrected to label-based selection.
+3. The seed's champion check is registry-first (`get_champion`); the `active_models`
+   mirror alone misses champions registered outside the API process.
+4. Frontend static serving changes the compose port mapping to 5174→80 and requires
+   CORS to cover `http://127.0.0.1:5174` (already configured in Phase 1/5).

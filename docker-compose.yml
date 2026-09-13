@@ -1,4 +1,6 @@
-# PulseGuard — Phase 1: db + api + frontend. The mlflow service arrives in Phase 3.
+# PulseGuard — final Compose layout (Phase 6).
+# One command brings up the whole platform:  docker compose up -d --build
+# Fresh demo data:                          docker compose run --rm api python scripts/seed_demo.py
 services:
   db:
     image: postgres:16-alpine
@@ -16,6 +18,24 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: >
+      sh -c "mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri postgresql+psycopg://${POSTGRES_USER:-pulseguard}:${POSTGRES_PASSWORD:-pulseguard_dev}@db:5432/mlflow
+      --default-artifact-root file:///mlartifacts
+      --allowed-hosts '*'
+      --cors-allowed-origins '*'"
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlartifacts:/mlartifacts
+    depends_on:
+      db:
+        condition: service_healthy
 
   api:
     build:
@@ -41,39 +61,17 @@ services:
       retries: 6
       start_period: 20s
 
-  mlflow:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    command: >
-      sh -c "mlflow server --host 0.0.0.0 --port 5000
-      --backend-store-uri postgresql+psycopg://${POSTGRES_USER:-pulseguard}:${POSTGRES_PASSWORD:-pulseguard_dev}@db:5432/mlflow
-      --default-artifact-root file:///mlartifacts
-      --allowed-hosts '*'
-      --cors-allowed-origins '*'"
-    ports:
-      - "5000:5000"
-    volumes:
-      - mlartifacts:/mlartifacts
-    depends_on:
-      db:
-        condition: service_healthy
-
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    environment:
-      VITE_API_BASE_URL: http://127.0.0.1:8000
+      args:
+        # the SPA calls the API directly on the host loopback (deterministic IPv4)
+        VITE_API_BASE_URL: http://127.0.0.1:8000
     ports:
       # Host 5174: 5173 can collide with other Vite/Docker stacks already bound on
       # this machine (e.g. a concurrently running CodeGraphV2 dev environment).
-      - "5174:5173"
-    volumes:
-      # dev-mode hot reload: serve host source, keep the image's node_modules
-      - ./frontend/src:/app/src
-      - ./frontend/index.html:/app/index.html
-      - ./frontend/vite.config.ts:/app/vite.config.ts
+      - "5174:80"
     depends_on:
       - api
 

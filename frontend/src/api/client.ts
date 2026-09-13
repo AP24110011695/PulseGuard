@@ -175,10 +175,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
-function post<T>(path: string): Promise<T> {
-  return request<T>(path, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
-}
-
 export const api = {
   listSeries: () => request<MetricSeries[]>('/api/v1/series'),
   getSeries: (id: number) => request<MetricSeriesDetail>(`/api/v1/series/${id}`),
@@ -195,6 +191,8 @@ export const api = {
   getDriftEvents: (limit = 20) => request<DriftEventPage>(`/api/v1/drift/events?limit=${limit}`),
   getPromotions: (limit = 25) => request<{ count: number; decisions: PromotionDecision[] }>(`/api/v1/promotions?limit=${limit}`),
   getAlerts: (limit = 200) => request<AlertsPage>(`/api/v1/alerts?limit=${limit}`),
-  ackAlert: (id: number) => request<{ id: number; acknowledged: boolean }>(`/api/v1/alerts/${id}/ack`, { method: 'POST' }),
-  _post: post,
+  ackAlert: (id: number) =>
+    request<{ id: number; acknowledged: boolean }>(`/api/v1/alerts/${id}/ack`, {
+      method: 'POST',
+    }),
 }

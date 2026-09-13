@@ -7,7 +7,6 @@ frontend
 mlruns
 mlartifacts
 ml/reports
-scripts
 **/__pycache__
 **/*.pyc
 .pytest_cache
